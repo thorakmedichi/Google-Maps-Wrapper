@@ -1,25 +1,4 @@
 ;
-function initMap(){
-    $(function(){
-        initGoogleMapsObject();
-
-        // Declare our view settings
-        // If left blank the defaults set in the googleMaps.initMap() will be used
-        let initOptions = {
-                center: {lat: homeData.lat, lng: homeData.lng},
-                zoom: 10,
-                mapTypeId: 'roadmap',
-                scrollwheel: false,
-                mapTypeControl: true,
-                mapTypeControlOptions: {
-                    style: google.maps.MapTypeControlStyle.HORIZONTAL_MENU,
-                    position: google.maps.ControlPosition.LEFT_BOTTOM
-                }
-            };
-        googleMaps.initMap('map', initOptions);
-    });
-}
-
 /**
  * @file Custom Google Maps methods
  * @author Ryan Stephens <ryan@sketchpad-media.com>
@@ -31,8 +10,6 @@ var initGoogleMapsObject = function(){
 
     var loadedEvent = new CustomEvent("googleMapsLoaded"); 
 
-    var imagePath = '../../img/google-maps-icons/';
-
     var selectedMarker;
     var markerMenu = document.getElementById('markerMenu');
 
@@ -40,72 +17,6 @@ var initGoogleMapsObject = function(){
     googleMaps.polygons = [];
     googleMaps.markers = [];
 
-    /**
-     * Define the marker objects to be used by the system 
-     * @type    Marker Object
-     */
-    googleMaps.genericMarkerIcon = {
-            url: imagePath + 'generic-marker.png',
-            size: new google.maps.Size(40, 40),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(20, 40),
-            optimized: false,
-            zIndex: 100
-        };
-
-    googleMaps.selectedMarkerIcon = {
-            url: imagePath + 'selected-marker.png',
-            size: new google.maps.Size(40, 40),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(20, 40),
-            optimized: false,
-            zIndex: 1000
-        };
-
-    googleMaps.selectedMatchMarkerIcon = {
-            url: imagePath + 'selected-swapmatch-marker.png',
-            size: new google.maps.Size(40, 40),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(20, 40),
-            optimized: false,
-            zIndex: 1000
-        };
-
-    googleMaps.homeMarkerIcon = {
-            url: imagePath + 'home-green.png',
-            size: new google.maps.Size(32, 37),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(16, 37),
-            optimized: false,
-            zIndex: 10000
-        };
-
-    googleMaps.workMarkerIcon = {
-            url: imagePath + 'briefcase-orange.png',
-            size: new google.maps.Size(32, 37),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(16, 37),
-            optimized: false,
-            zIndex: 10000
-        };
-
-    googleMaps.matchMarkerIcon = {
-            url: imagePath + 'match-marker.png',
-            size: new google.maps.Size(40, 40),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(20, 40),
-            optimized: false,
-            zIndex: 10000
-        };
-
-    googleMaps.alternateMarkerIcon = {
-            url: imagePath + 'alternate-marker.png',
-            size: new google.maps.Size(40, 40),
-            origin: new google.maps.Point(0, 0),
-            anchor: new google.maps.Point(20, 40),
-            optimized: false,
-            zIndex: 10
-        };
 
     /**
      * Create geographic boundary objects
@@ -144,9 +55,13 @@ var initGoogleMapsObject = function(){
     }
 
     // Place a single marker on the map and add it to the marker array
-    googleMaps.placeMarker = function (map, location, icon, draggable = false){
+    googleMaps.placeMarker = function (map, location, icon, draggable, callback){
         if (typeof icon == 'undefined' || icon == null){
             var icon = googleMaps.genericMarkerIcon;
+        }
+
+        if (typeof draggable == 'undefined' || draggable == null){
+            var draggable = false;;
         }
 
         // Create the marker
@@ -161,10 +76,8 @@ var initGoogleMapsObject = function(){
         googleMaps.markers.push({location: location, marker: marker});
 
         // Define event listeners
-        if (draggable){
-            marker.addListener('dragend', function(){
-                var location = this.getPosition();
-            });
+        if (draggable && typeof callback === 'function'){
+            marker.addListener('dragend', callback);
         }
 
         googleMaps.markerBounds.extend(location);
@@ -173,8 +86,8 @@ var initGoogleMapsObject = function(){
     }
 
     // Place a single marker on the map and make it movable and recordable
-    googleMaps.placeMoveableMarker = function (map, location){
-        googleMaps.placeMarker(map, location, null, true);
+    googleMaps.placeMoveableMarker = function (map, location, icon, callback){
+        return googleMaps.placeMarker(map, location, icon, true, callback);
     }
 
     // Turn a markers visibility on or off
@@ -360,12 +273,21 @@ var initGoogleMapsObject = function(){
         }).promise();
     };
 
+    /**
+     * ///  KML DATA
+     * ///////////////////////////////////////////////////////
+     */
+    googleMaps.displayKml = function(map, url){
+        var kmlOverlay = new google.maps.KmlLayer({
+            url: url,
+            map: map
+        });
+    }
 
     /**
      * ///  DISTANCE / DIRECTION
      * ///////////////////////////////////////////////////////
      */
-    
      googleMaps.metersToKm = function(meters){
         var totalKms = meters / 1000;
 
@@ -507,14 +429,14 @@ var initGoogleMapsObject = function(){
      // Get the address component from the Google Map Place Object
      // These include, locality (city), Administrative Area (province), country etc
     googleMaps.getAddressComponent = function(place, key){
-        var address_components = place.address_components;
-        var x = void 0;
-        for (x in address_components) {
-            var arrayKey = address_components[x];
+        var addressComponents = place.address_components;
+        var x;
+        for (x in addressComponents) {
+            var arrayKey = addressComponents[x];
             var componentName = arrayKey.types[0];
 
             if (key == componentName){
-                return {long_name: address_components[x].long_name, short_name: address_components[x].short_name}
+                return {long_name: addressComponents[x].long_name, short_name: addressComponents[x].short_name}
             }
         }
         return false;
@@ -577,6 +499,44 @@ var initGoogleMapsObject = function(){
         map.setZoom(zoom);
     }
 
+    // Set the bounds of the map and zoom into them
+    googleMaps.zoomToBounds = function (map, bounds){
+        map.fitBounds(bounds);
+        var thisEvent = google.maps.event.addListener(map, 'idle', function(){
+            var zoom = map.getZoom();
+            var newZoom = parseInt(zoom + 1);
+            map.setZoom(newZoom);
+            
+            google.maps.event.removeListener(thisEvent);
+        });
+    }
+
+    // Draw the bounds on the map so they are visible
+    googleMaps.drawBounds = function (map, bounds){
+        var viewportBox;
+        google.maps.event.addListener(map, 'idle', function(event) {
+            var ne = new google.maps.LatLng(bounds.north, bounds.east);
+            var sw = new google.maps.LatLng(bounds.south, bounds.west);
+
+            var viewportPoints = [
+                ne, new google.maps.LatLng(ne.lat(), sw.lng()),
+                sw, new google.maps.LatLng(sw.lat(), ne.lng()), ne
+            ];
+            /*strokeOpacity = 0 , if don't want to show the border moving. */
+            if (viewportBox) {
+                viewportBox.setPath(viewportPoints);
+            } else {
+                viewportBox = new google.maps.Polyline({
+                    path: viewportPoints,
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 4 
+                });
+                viewportBox.setMap(map);
+            };
+        });
+    }
+
     /**
      * ///  AUTOCOMPLETE SEARCH
      * ///////////////////////////////////////////////////////
@@ -587,10 +547,12 @@ var initGoogleMapsObject = function(){
     googleMaps.autoCompleteAddMarker = function(that, map) {
         var place = that.getPlace();
         var location = googleMaps.getCoordinatesFromPlace(place);
+        var marker = googleMaps.placeMarker(map, location);
 
-        googleMaps.clearMarkers();
-        googleMaps.placeMoveableMarker(map, location);
         googleMaps.zoomToCoordinates(map, location);
+        googleMaps.clearMarkers();
+
+        return marker;
     };
 
     // Add the search input text field into the map object
@@ -636,10 +598,11 @@ var initGoogleMapsObject = function(){
 
         if (typeof callback !== 'undefined' && callback !== null){
             autoComplete.addListener('place_changed', callback);
+
         } else {
             //googleMaps.autoCompleteAddMarker.bind(this, map);
             autoComplete.addListener('place_changed', function(){
-                googleMaps.autoCompleteAddMarker(this, map);
+                return googleMaps.autoCompleteAddMarker(this, map);
             });
         }
     }
@@ -701,22 +664,22 @@ var initGoogleMapsObject = function(){
 
     // Create the map on the screen with our options
     googleMaps.initMap = function (mapDivId, initOptions){
-
         // Declare our default view settings
         if (typeof initOptions == 'undefined'){
-            let initOptions = {
-                center: new google.maps.LatLng(48, -123),
-                zoom: 6,
+
+            var initOptions = {
+                center: {lat: 43, lng: 12},
+                zoom: 2,
                 mapTypeId: 'satellite',
                 scrollwheel: false
             };
         }
 
-        googleMaps.map = new google.maps.Map(document.getElementById( mapDivId ), initOptions);
-        //googleMaps.geoLocate(googleMaps.map);
-        //googleMaps.autoCompleteSearch(googleMaps.map, mapDivId);
+        googleMaps[mapDivId] = new google.maps.Map(document.getElementById( mapDivId ), initOptions);
+        //googleMaps.geoLocate(googleMaps[mapDivId]);
+        //googleMaps.autoCompleteSearch(googleMaps[mapDivId], mapDivId);
 
-        googleMaps.displayMarkerMenu(googleMaps.map);
+        googleMaps.displayMarkerMenu(googleMaps[mapDivId]);
 
         document.body.dispatchEvent(loadedEvent);
     };
