@@ -71,7 +71,7 @@ function initMap(){
 
     var getRegion = function(that, map){
         var place = that.getPlace();
-console.log (place);
+
         googleMaps.getPolygonBoundary(place)
             .done(function(polyRegion){
                 googleMaps.drawPolygonBoundary(map, polyRegion);
